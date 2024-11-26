@@ -1,0 +1,12 @@
+{
+  "entryPoints": ["src/index.ts"],
+  "out": "docs",
+  "excludeExternals": true,
+  "plugin": [
+    "typedoc-github-theme"
+  ],
+  "projectDocuments": ["documents/*.md"],
+  "navigation": {
+    "includeCategories": true
+  }
+}
