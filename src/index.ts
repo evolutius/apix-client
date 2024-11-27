@@ -1,7 +1,7 @@
 /**
  * @module @evlt/apix-client
  * 
- * @category Developer Documentation
+ * @category API Reference
  */
 
 export { ApiXClient } from './client/ApiXClient';
