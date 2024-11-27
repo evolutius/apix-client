@@ -343,7 +343,8 @@ export class ApiXRequest {
     const httpBodyBase64 = stringifiedJsonBody.length > 0
       ? Buffer.from(stringifiedJsonBody, 'binary').toString('base64')
       : '';
-    const message = `${this.url.pathname}.${this.httpMethod}.${nonce}.${dateString}.${httpBodyBase64}`;
+    const pathWithQueries = `${this.url.pathname}${this.url.search}`;
+    const message = `${pathWithQueries}.${this.httpMethod}.${nonce}.${dateString}.${httpBodyBase64}`;
     return hmac
       .update(message, 'utf-8')
       .digest()
