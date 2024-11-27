@@ -2,6 +2,8 @@
 title: Getting Started
 category: Developer Documentation
 ---
+# Getting Started
+
 A client for API-X ([GitHub repository](https://github.com/evolutius/apix)). This package provides an easy-to-use interface for interacting with API-X-based servers. The client is designed to be:
 
 - **Extensible & Modifiable**: Easily extend or modify the client for custom API-X-based servers.

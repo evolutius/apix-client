@@ -2,6 +2,8 @@
 title: Writing a Custom API-X Client
 category: Developer Documentation
 ---
+# Writing a Custom API-X Client
+
 In this tutorial, we'll create a custom API-X client called `MovifyClient` that interacts with a hypothetical movie API, `Movify`, using `ApiXClient` and `ApiXRequest` for secure, customizable requests. This custom client will encapsulate the `ApiXClient` while adding custom behavior, such as setting an `Authorization` header with a JWT token and transforming the response data to match a `Movie` interface.
 
 ## Prerequisites
