@@ -1,17 +1,5 @@
 import { ApiXRequest } from '../ApiXRequest';
 import { ApiXRequestConfig } from '../types/ApiXRequestConfig';
-import axios, { AxiosError, AxiosResponse } from 'axios';
-
-jest.mock('axios', () => {
-  const actualModule = jest.requireActual('axios');
-  return {
-    ...actualModule,
-    default: {
-      // ...actualModule,
-      request: jest.fn(),
-    }
-  };
-});
 
 describe('ApiXRequest', () => {
   const config: ApiXRequestConfig = {
@@ -25,6 +13,10 @@ describe('ApiXRequest', () => {
   let request: ApiXRequest;
 
   beforeEach(() => {
+    jest.restoreAllMocks(); // Reset mocks before each test
+    jest.clearAllMocks();
+
+    // Mock Date to ensure consistent headers
     const mockDate = 'Wed, 13 Nov 2024 15:00:00 GMT';
     jest.spyOn(Date.prototype, 'toUTCString').mockReturnValue(mockDate);
 
@@ -82,9 +74,10 @@ describe('ApiXRequest', () => {
   });
 
   it('should successfully make a request', async () => {
-    axios.request = jest.fn().mockResolvedValueOnce({
-      data: { success: true },
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: true,
       status: 200,
+      json: jest.fn().mockResolvedValue({ success: true })
     });
 
     const response = await request.make();
@@ -92,27 +85,26 @@ describe('ApiXRequest', () => {
     expect(response.data).toEqual({ success: true });
   });
 
-  it('should handle request failure gracefully', async () => {
-    axios.request = jest.fn().mockRejectedValueOnce(
-      new AxiosError(`AxiosError`, undefined, undefined, undefined, {
-        status: 400,
-        data: {
-          success: false,
-          message: 'Bad Request'
-        }
-      } as AxiosResponse)
-    );
+  it('should handle request failure gracefully with API-X error response', async () => {
+    global.fetch = jest.fn().mockResolvedValueOnce({
+      ok: false, // Simulating an error status (e.g., 400 Bad Request)
+      status: 400,
+      json: jest.fn().mockResolvedValue({
+        success: false,
+        message: 'Bad Request'
+      })
+    });
 
     const response = await request.make();
     expect(response.statusCode).toBe(400);
     expect(response.data).toEqual({ success: false, message: 'Bad Request' });
   });
 
-  it('should throw error for unexpected request failure', async () => {
-    axios.request = jest.fn().mockRejectedValue(new Error('Network Error'));
+  it('should throw error for unexpected network failure', async () => {
+    global.fetch = jest.fn().mockRejectedValue(new Error('Network Error'));
 
-    await expect(request.make()).rejects.toThrow('Network Error');
-    await expect(ApiXRequest.makeRequest(request)).rejects.toThrow('Network Error');
+    await expect(request.make()).rejects.toThrow('API-X Request failed: Error: Network Error');
+    await expect(ApiXRequest.makeRequest(request)).rejects.toThrow('API-X Request failed: Error: Network Error');
   });
 
   it('same nonce, date, and key should always generate the same signature for the same json body with differently sorted keys', async () => {
