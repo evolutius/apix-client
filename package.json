@@ -1,6 +1,6 @@
 {
   "name": "@evlt/apix-client",
-  "version": "1.0.0-beta.2",
+  "version": "1.0.0",
   "description": "A Node.js TypeScript API-X Client",
   "main": "lib/index.js",
   "scripts": {
@@ -36,12 +36,9 @@
     "globals": "^15.12.0",
     "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
-    "typedoc": "^0.26.11",
-    "typedoc-github-theme": "^0.1.2",
-    "typescript": "^5.7.2",
+    "typedoc": "^0.27.9",
+    "typedoc-github-theme": "^0.2.1",
+    "typescript": "^5.8.2",
     "typescript-eslint": "^8.16.0"
-  },
-  "dependencies": {
-    "axios": "^1.7.8"
   }
 }

@@ -2,7 +2,6 @@ import { ApiXHttpMethod } from './types/ApiXHttpMethod';
 import { ApiXJsonObject } from './types/ApiXJsonObject';
 import { ApiXRequestConfig } from './types/ApiXRequestConfig';
 import { ApiXResponse } from './types/ApiXResponse';
-import axios from 'axios';
 import { createHmac } from 'crypto';
 
 /**
@@ -256,26 +255,20 @@ export class ApiXRequest {
    */
   public async make(): Promise<ApiXResponse> {
     try {
-      const response = await axios.request({
-        url: this.url.toString(),
+      const response = await fetch(this.url.toString(), {
         method: this.httpMethod,
-        data: this.data,
-        headers: this.allHeaders
+        headers: this.allHeaders,
+        body: this.data ? JSON.stringify(this.data) : undefined
       });
 
+      const responseData = await response.json().catch(() => null);
+
       return {
-        data: response.data,
+        data: responseData,
         statusCode: response.status
       };
     } catch (error) {
-      if (axios.isAxiosError(error)) {
-        return {
-          data: error.response?.data,
-          statusCode: error.response?.status ?? 500
-        };
-      } else {
-        throw error;
-      }
+      throw new Error(`API-X Request failed: ${error}`);
     }
   }
 
@@ -343,7 +336,8 @@ export class ApiXRequest {
     const httpBodyBase64 = stringifiedJsonBody.length > 0
       ? Buffer.from(stringifiedJsonBody, 'binary').toString('base64')
       : '';
-    const message = `${this.url.pathname}.${this.httpMethod}.${nonce}.${dateString}.${httpBodyBase64}`;
+    const pathWithQueries = `${this.url.pathname}${this.url.search}`;
+    const message = `${pathWithQueries}.${this.httpMethod}.${nonce}.${dateString}.${httpBodyBase64}`;
     return hmac
       .update(message, 'utf-8')
       .digest()
