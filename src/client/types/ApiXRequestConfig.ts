@@ -1,5 +1,6 @@
 import { ApiXHttpMethod } from './ApiXHttpMethod';
 import { ApiXJsonObject } from './ApiXJsonObject';
+import { ApiXKeyStore } from '../security/ApiXKeyStore';
 
 /**
  * An object used to configure an `ApiXRequest` object.
@@ -13,14 +14,9 @@ export interface ApiXRequestConfig {
   readonly url: URL;
 
   /**
-   * The API Key of the application making the request.
+   * An object that allows you to securely retrieve API keys and application keys.
    */
-  readonly apiKey: string;
-
-  /**
-   * The application key used to sign requests.
-   */
-  readonly appKey: string;
+  readonly keyStore: ApiXKeyStore;
 
   /**
    * The HTTP Method.

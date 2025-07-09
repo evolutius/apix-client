@@ -1,5 +1,6 @@
 import { ApiXHttpMethod } from './types/ApiXHttpMethod';
 import { ApiXJsonObject } from './types/ApiXJsonObject';
+import { ApiXKeyStore } from './security/ApiXKeyStore';
 import { ApiXRequest } from './ApiXRequest';
 import { ApiXResponse } from './types/ApiXResponse';
 
@@ -18,8 +19,7 @@ export class ApiXClient {
    * @param appKey The application signing key.
    */
   public constructor(
-    private readonly apiKey: string,
-    private readonly appKey: string
+    private readonly keyStore: ApiXKeyStore
   ) {}
 
   //// Creating Request Objects ////
@@ -40,8 +40,7 @@ export class ApiXClient {
   ): ApiXRequest {
     return new ApiXRequest({
       url,
-      apiKey: this.apiKey,
-      appKey: this.appKey,
+      keyStore: this.keyStore,
       data,
       httpMethod
     });

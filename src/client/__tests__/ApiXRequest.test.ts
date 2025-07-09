@@ -1,11 +1,15 @@
 import { ApiXRequest } from '../ApiXRequest';
+import { ApiXResponseInvalidRequestError } from '../error';
 import { ApiXRequestConfig } from '../types/ApiXRequestConfig';
 
 describe('ApiXRequest', () => {
+  const keyStore = {
+    getApiKey: jest.fn().mockReturnValue('testApiKey'),
+    getAppKey: jest.fn().mockReturnValue('testAppKey'),
+  }
   const config: ApiXRequestConfig = {
     url: new URL('https://apix.example.com/endpoint/method?param=val'),
-    apiKey: 'testApiKey',
-    appKey: 'testAppKey',
+    keyStore,
     httpMethod: 'POST',
     data: { key: 'value' },
   };
@@ -28,9 +32,29 @@ describe('ApiXRequest', () => {
     expect(request.httpMethod).toBe('POST');
   });
 
-  it('should initialize headers properly', () => {
+  it('protected headers must not be set after making request', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      status: 200,
+      json: jest.fn().mockResolvedValue({ success: true })
+    });
+
+    await request.make();
     const headers = request.headers;
-    expect(headers['x-api-key']).toBe(config.apiKey);
+    expect(headers['x-api-key']).toBeUndefined();
+    expect(headers['x-signature']).toBeUndefined();
+    expect(headers['x-signature-nonce']).toBeUndefined();
+  });
+
+  it('should initialize read-only headers properly.', async () => {
+    /// Ensure that protected headers are not unset after making the request for testing purposes
+    jest.spyOn(ApiXRequest.prototype as any, 'unsetProtectedHeaders').mockImplementation(() => {});
+    global.fetch = jest.fn().mockResolvedValue({
+      status: 200,
+      json: jest.fn().mockResolvedValue({ success: true })
+    });
+
+    await request.make();
+    const headers = request.headers;
     expect(headers['content-type']).toBe('application/json');
     expect(headers['date']).toBeDefined();
   });
@@ -41,6 +65,34 @@ describe('ApiXRequest', () => {
     expect(() => request.header('x-signature')).toThrow('Invalid access. x-signature is a protected header and cannot be accessed.');
   });
 
+  it('should throw an error when attempting to send a request that was already sent', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      status: 200,
+      json: jest.fn().mockResolvedValue({ success: true })
+    });
+    await request.make();
+
+    await expect(request.make()).rejects.toThrow('This request has already been sent. API-X does not allow attempting to send the same request multiple times.');
+  });
+
+  it('should throw an error when receiving an error response from the API-X endpoint', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false, // Simulating an error status (e.g., 400 Bad Request)
+      status: 400,
+      json: jest.fn().mockResolvedValue({
+        success: false,
+        message: 'The request is invalid.',
+        error: {
+          id: 'invalidRequest',
+          message: 'The request is invalid.'
+        }
+      })
+    });
+    await expect(request.make()).rejects.toThrow(
+      new ApiXResponseInvalidRequestError(400, 'The request is invalid.')
+    );
+  });
+
   it('sets and unsets unprotected headers correctly', () => {
     request.setHeader('x-custom-header', 'value')
     expect(request.header('x-custom-header')).toBe('value');
@@ -48,8 +100,9 @@ describe('ApiXRequest', () => {
     expect(request.header('x-custom-header')).toBeUndefined();
   });
 
-  it('can access write-protected headers correctly', () => {
+  it('can access read-only headers correctly', () => {
     expect(request.header('date')).toBeDefined();
+    expect(request.header('content-type')).toBe('application/json');
   });
 
   it('should set and get cookies properly', () => {
@@ -104,12 +157,18 @@ describe('ApiXRequest', () => {
     global.fetch = jest.fn().mockRejectedValue(new Error('Network Error'));
 
     await expect(request.make()).rejects.toThrow('API-X Request failed: Error: Network Error');
+    request['sent'] = false; // Reset state to test other function.
     await expect(ApiXRequest.makeRequest(request)).rejects.toThrow('API-X Request failed: Error: Network Error');
   });
 
   it('same nonce, date, and key should always generate the same signature for the same json body with differently sorted keys', async () => {
     const mockNonce = 'abc';
     jest.spyOn(ApiXRequest.prototype as any, 'generateNonce').mockReturnValue(mockNonce);
+    jest.spyOn(ApiXRequest.prototype as any, 'unsetProtectedHeaders').mockImplementation(() => {});
+    global.fetch = jest.fn().mockResolvedValue({
+      status: 200,
+      json: jest.fn().mockResolvedValue({ success: true })
+    });
 
     const requestA = new ApiXRequest({
       ...config,
@@ -132,6 +191,12 @@ describe('ApiXRequest', () => {
         key: 'value'
       }
     });
+
+    /// send requests so that headers are initialized
+    await (async () => {
+      await requestA.make();
+      await requestB.make();
+    })();
 
     expect(
       requestA['allHeaders']['x-signature-nonce']
