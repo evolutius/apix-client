@@ -1,7 +1,10 @@
 import { ApiXHttpMethod } from './types/ApiXHttpMethod';
 import { ApiXJsonObject } from './types/ApiXJsonObject';
+import { ApiXKeyStore } from './security/ApiXKeyStore';
 import { ApiXRequest } from './ApiXRequest';
 import { ApiXResponse } from './types/ApiXResponse';
+import { errorForResponse } from './error/ApiXError';
+import { isApiXErrorResponse } from './types';
 
 /**
  * A client for an API-X server.
@@ -18,8 +21,7 @@ export class ApiXClient {
    * @param appKey The application signing key.
    */
   public constructor(
-    private readonly apiKey: string,
-    private readonly appKey: string
+    private readonly keyStore: ApiXKeyStore
   ) {}
 
   //// Creating Request Objects ////
@@ -40,8 +42,7 @@ export class ApiXClient {
   ): ApiXRequest {
     return new ApiXRequest({
       url,
-      apiKey: this.apiKey,
-      appKey: this.appKey,
+      keyStore: this.keyStore,
       data,
       httpMethod
     });
@@ -127,7 +128,7 @@ export class ApiXClient {
     httpMethod: ApiXHttpMethod = 'GET',
     data?: ApiXJsonObject
   ): Promise<ApiXResponse> {
-    return await this.createRequest(url, httpMethod, data).make();
+    return this.handleResponse(await this.createRequest(url, httpMethod, data).make());
   }
 
   /**
@@ -139,7 +140,7 @@ export class ApiXClient {
    * @category Making API-X Requests
    */
   public async makeGetRequest(url: URL): Promise<ApiXResponse> {
-    return await this.makeRequest(url);
+    return this.handleResponse(await this.makeRequest(url));
   }
 
   /**
@@ -152,7 +153,7 @@ export class ApiXClient {
    * @category Making API-X Requests
    */
   public async makePostRequest(url: URL, data?: ApiXJsonObject): Promise<ApiXResponse> {
-    return await this.makeRequest(url, 'POST', data);
+    return this.handleResponse(await this.makeRequest(url, 'POST', data));
   }
 
   /**
@@ -165,7 +166,7 @@ export class ApiXClient {
    * @category Making API-X Requests
    */
   public async makePutRequest(url: URL, data?: ApiXJsonObject): Promise<ApiXResponse> {
-    return await this.makeRequest(url, 'PUT', data);
+    return this.handleResponse(await this.makeRequest(url, 'PUT', data));
   }
 
   /**
@@ -178,7 +179,7 @@ export class ApiXClient {
    * @category Making API-X Requests
    */
   public async makeDeleteRequest(url: URL, data?: ApiXJsonObject): Promise<ApiXResponse> {
-    return await this.makeRequest(url, 'DELETE', data);
+    return this.handleResponse(await this.makeRequest(url, 'DELETE', data));
   }
 
   /**
@@ -191,6 +192,19 @@ export class ApiXClient {
    * @category Making API-X Requests
    */
   public async makePatchRequest(url: URL, data?: ApiXJsonObject): Promise<ApiXResponse> {
-    return await this.makeRequest(url, 'PATCH', data);
+    return this.handleResponse(await this.makeRequest(url, 'PATCH', data));
+  }
+
+  /**
+   * Handles the response from an API-X request and throws an `ApiXError`, if needed.
+   * @param response The response object.
+   * @returns The original response object.
+   * @throws An error if the response indicates a failure.
+   */
+  private handleResponse(response: ApiXResponse): ApiXResponse {
+    if (response && response.data && isApiXErrorResponse(response.data)) {
+      throw errorForResponse(response.data);
+    }
+    return response;
   }
 }

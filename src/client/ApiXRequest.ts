@@ -1,5 +1,6 @@
 import { ApiXHttpMethod } from './types/ApiXHttpMethod';
 import { ApiXJsonObject } from './types/ApiXJsonObject';
+import { ApiXKeyStore } from './security/ApiXKeyStore';
 import { ApiXRequestConfig } from './types/ApiXRequestConfig';
 import { ApiXResponse } from './types/ApiXResponse';
 import { createHmac } from 'crypto';
@@ -18,13 +19,13 @@ export enum ApiXRequestHeaders {
 
 enum ProtectedHeaders {
   Signature = 'X-Signature',
-  SignatureNonce = 'X-Signature-Nonce'
+  SignatureNonce = 'X-Signature-Nonce',
+  ApiKey = 'X-API-Key'
 }
 
-enum WriteProtectedHeaders {
+enum ReadOnlyHeaders {
   ContentType = 'Content-Type',
-  Date = 'Date',
-  ApiKey = 'X-API-Key'
+  Date = 'Date'
 }
 
 /**
@@ -53,7 +54,13 @@ export class ApiXRequest {
   //// Private Properties ////
 
   /**
-   * Contains the protected headers–headers that shoudn't be read nor overwritten for any reason.
+   * The key store used to securely retrieve API keys and application keys.
+   */
+  private readonly keyStore: ApiXKeyStore;
+
+  /**
+   * Contains the protected headers–headers that shoudn't be read nor overwritten for any reason,
+   * and should only be retained while the request is actively being processed.
    */
   private readonly protectedHeaders: Record<string, string> = {};
 
@@ -62,7 +69,7 @@ export class ApiXRequest {
    * 
    * Examples may include `Content-Type` and `Date`.
    */
-  private readonly writeProtectedHeaders: Record<string, string> = {};
+  private readonly readOnlyHeaders: Record<string, string> = {};
 
   /**
    * Contains headers that can be read and overwritten.
@@ -70,6 +77,14 @@ export class ApiXRequest {
    * These may include custom headers or common headers.
    */
   private readonly unprotectedHeaders: Record<string, string> = {};
+
+  /**
+   * Indicates whether the request has been attempted to be sent.
+   * 
+   * This is used to prevent sending the same request multiple times,
+   * as API-X servers do not allow repeat requests.
+   */
+  private sent = false;
 
   /**
    * Contains the cookies in the request.
@@ -85,24 +100,43 @@ export class ApiXRequest {
     this.url = config.url;
     this.httpMethod = config.httpMethod ?? 'GET';
     this.data = config.data;
-    
-    this.initializeHeaders(config.apiKey, config.appKey);
+    this.keyStore = config.keyStore;
+
+    this.initializeReadOnlyHeaders();
   }
 
-  private initializeHeaders(apiKey: string, appKey: string) {
+  /**
+   * Initializes the read-only headers for the request.
+   */
+  private initializeReadOnlyHeaders() {
+    // Initialize read-only headers
     const requestDate = (new Date()).toUTCString();
+    this.readOnlyHeaders[this.headerName(ReadOnlyHeaders.ContentType)] = 'application/json';
+    this.readOnlyHeaders[this.headerName(ReadOnlyHeaders.Date)] = requestDate;
+  }
 
-    // Initialize write-protected headers
-    this.writeProtectedHeaders[this.headerName(WriteProtectedHeaders.ApiKey)] = apiKey;
-    this.writeProtectedHeaders[this.headerName(WriteProtectedHeaders.Date)] = requestDate;
-    this.writeProtectedHeaders[this.headerName(WriteProtectedHeaders.ContentType)] = 'application/json';
-
-    // Initialize protected headers
+  /**
+   * Initializes the protected / short-lived headers for the request.
+   * @param apiKey The API key to use for the request.
+   * @param appKey The application key to use for the request.
+   */
+  private initializeProtectedHeaders(apiKey: string, appKey: string) {
+    const requestDate = this.readOnlyHeaders[this.headerName(ReadOnlyHeaders.Date)];
     const nonce = this.generateNonce(32);
     const signature = this.generateSignature(appKey, requestDate, nonce);
 
-    this.protectedHeaders[this.headerName(ProtectedHeaders.SignatureNonce)] = nonce;
+    this.protectedHeaders[this.headerName(ProtectedHeaders.ApiKey)] = apiKey;
     this.protectedHeaders[this.headerName(ProtectedHeaders.Signature)] = signature;
+    this.protectedHeaders[this.headerName(ProtectedHeaders.SignatureNonce)] = nonce;
+  }
+
+  /**
+   * Unsets the protected headers for the request.
+   */
+  private unsetProtectedHeaders() {
+    delete this.readOnlyHeaders[this.headerName(ProtectedHeaders.ApiKey)];
+    delete this.protectedHeaders[this.headerName(ProtectedHeaders.Signature)];
+    delete this.protectedHeaders[this.headerName(ProtectedHeaders.SignatureNonce)];
   }
 
   //// Getters ////
@@ -119,7 +153,7 @@ export class ApiXRequest {
     return {
       ...this.unprotectedHeaders,
       [ApiXRequestHeaders.Cookie]: this.getCookieHeader(),
-      ...this.writeProtectedHeaders,
+      ...this.readOnlyHeaders,
     };
   }
 
@@ -136,7 +170,7 @@ export class ApiXRequest {
   private get allHeaders(): Record<string, string> {
     return {
       ...this.unprotectedHeaders,
-      ...this.writeProtectedHeaders,
+      ...this.readOnlyHeaders,
       [ApiXRequestHeaders.Cookie]: this.getCookieHeader(),
       ...this.protectedHeaders,
     };
@@ -153,7 +187,7 @@ export class ApiXRequest {
    */
   public setHeader(name: string, value: string) {
     const headerName = this.headerName(name);
-    if (this.isProtectedHeader(headerName) || this.isWriteProtectedHeader(headerName)) {
+    if (this.isProtectedHeader(headerName) || this.isReadOnlyHeader(headerName)) {
       throw new Error(`Attempting to set a protected header: ${name}!`);
     }
     this.unprotectedHeaders[headerName] = value;
@@ -168,7 +202,7 @@ export class ApiXRequest {
    */
   public unsetHeader(name: string) {
     const headerName = this.headerName(name);
-    if (this.isProtectedHeader(headerName) || this.isWriteProtectedHeader(headerName)) {
+    if (this.isProtectedHeader(headerName) || this.isReadOnlyHeader(headerName)) {
       throw new Error(`Attempting to unset a protected header: ${name}!`);
     }
     delete this.unprotectedHeaders[headerName];
@@ -190,7 +224,7 @@ export class ApiXRequest {
     if (this.isProtectedHeader(headerName)) {
       throw new Error(`Invalid access. ${name} is a protected header and cannot be accessed.`);
     }
-    return this.unprotectedHeaders[headerName] || this.writeProtectedHeaders[headerName];
+    return this.unprotectedHeaders[headerName] || this.readOnlyHeaders[headerName];
   }
 
   /**
@@ -254,6 +288,17 @@ export class ApiXRequest {
    * @category Making API-X Requests
    */
   public async make(): Promise<ApiXResponse> {
+    if (this.sent) {
+      throw new Error('This request has already been sent. API-X does not allow attempting to send the same request multiple times.');
+    }
+
+    this.sent = true;
+
+    this.initializeProtectedHeaders(
+      this.keyStore.getApiKey(),
+      this.keyStore.getAppKey()
+    );
+
     try {
       const response = await fetch(this.url.toString(), {
         method: this.httpMethod,
@@ -263,11 +308,14 @@ export class ApiXRequest {
 
       const responseData = await response.json().catch(() => null);
 
+      this.unsetProtectedHeaders();
+
       return {
         data: responseData,
         statusCode: response.status
       };
     } catch (error) {
+      this.unsetProtectedHeaders();
       throw new Error(`API-X Request failed: ${error}`);
     }
   }
@@ -293,18 +341,13 @@ export class ApiXRequest {
 
   //// Helper Methods ////
   private isProtectedHeader(name: string): boolean {
-    return this.isHeaderInRecord(name, this.protectedHeaders);
+    const protectedHeaders = Object.values(ProtectedHeaders).map(header => this.headerName(header));
+    return protectedHeaders.includes(this.headerName(name));
   }
 
-  private isWriteProtectedHeader(name: string): boolean {
-    return this.isHeaderInRecord(name, this.writeProtectedHeaders);
-  }
-
-  private isHeaderInRecord(name: string, record: Record<string, string>) {
-    const headerNames = new Set([
-      ...Object.keys(record).map(name => this.headerName(name)),
-    ]);
-    return headerNames.has(this.headerName(name));
+  private isReadOnlyHeader(name: string): boolean {
+    const readOnlyHeaders = Object.values(ReadOnlyHeaders).map(header => this.headerName(header));
+    return readOnlyHeaders.includes(this.headerName(name));
   }
 
   private getCookieHeader(): string {

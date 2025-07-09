@@ -1,18 +1,21 @@
 import { ApiXClient } from '../ApiXClient';
 import { ApiXRequest } from '../ApiXRequest';
+import { ApiXInvalidRequestError } from '../error/ApiXError';
 import { ApiXResponse } from '../types/ApiXResponse';
 
 jest.mock('../ApiXRequest');
 const MockApiXRequest = ApiXRequest as jest.MockedClass<typeof ApiXRequest>;
 
 describe('ApiXClient', () => {
-  const apiKey = 'testApiKey';
-  const appKey = 'testAppKey';
+  const keyStore = {
+    getApiKey: jest.fn().mockReturnValue('testApiKey'),
+    getAppKey: jest.fn().mockReturnValue('testAppKey'),
+  }
   let client: ApiXClient;
   let url: URL;
 
   beforeEach(() => {
-    client = new ApiXClient(apiKey, appKey);
+    client = new ApiXClient(keyStore);
     url = new URL('https://apix.example.com/endpoint/method?param=val');
     MockApiXRequest.mockClear();
   });
@@ -21,8 +24,7 @@ describe('ApiXClient', () => {
     const request = client.createRequest(url, 'POST', { key: 'value' });
     expect(MockApiXRequest).toHaveBeenCalledWith({
       url,
-      apiKey,
-      appKey,
+      keyStore,
       data: { key: 'value' },
       httpMethod: 'POST',
     });
@@ -32,8 +34,7 @@ describe('ApiXClient', () => {
     client.createGetRequest(url);
     expect(MockApiXRequest).toHaveBeenCalledWith({
       url,
-      apiKey,
-      appKey,
+      keyStore,
       httpMethod: 'GET',
       data: undefined,
     });
@@ -45,6 +46,23 @@ describe('ApiXClient', () => {
 
     const response = await client.makeRequest(url, 'POST', { key: 'value' });
     expect(response).toEqual(mockResponse);
+  });
+
+  it('should convert response into an error when appropriate', async () => {
+    const mockResponse: ApiXResponse = {
+      statusCode: 400,
+      data: {
+        success: false,
+        error: {
+          id: 'invalidRequest',
+          message: 'Invalid request.',
+        }
+      }
+    };
+    MockApiXRequest.prototype.make.mockResolvedValue(mockResponse);
+
+    await expect(client.makeRequest(url, 'POST', { key: 'value' })).rejects.toThrow(ApiXInvalidRequestError);
+    await expect(client.makeRequest(url, 'POST', { key: 'value' })).rejects.toThrow('Invalid request.');
   });
 
   it('should handle request failures gracefully', async () => {
