@@ -1,4 +1,5 @@
 import { ApiXRequest } from '../ApiXRequest';
+import { ApiXResponseInvalidRequestError } from '../error';
 import { ApiXRequestConfig } from '../types/ApiXRequestConfig';
 
 describe('ApiXRequest', () => {
@@ -72,6 +73,24 @@ describe('ApiXRequest', () => {
     await request.make();
 
     await expect(request.make()).rejects.toThrow('This request has already been sent. API-X does not allow attempting to send the same request multiple times.');
+  });
+
+  it('should throw an error when receiving an error response from the API-X endpoint', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false, // Simulating an error status (e.g., 400 Bad Request)
+      status: 400,
+      json: jest.fn().mockResolvedValue({
+        success: false,
+        message: 'The request is invalid.',
+        error: {
+          id: 'invalidRequest',
+          message: 'The request is invalid.'
+        }
+      })
+    });
+    await expect(request.make()).rejects.toThrow(
+      new ApiXResponseInvalidRequestError(400, 'The request is invalid.')
+    );
   });
 
   it('sets and unsets unprotected headers correctly', () => {

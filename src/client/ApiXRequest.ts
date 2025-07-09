@@ -1,9 +1,15 @@
+import {
+  ApiXErrorResponse,
+  isApiXErrorResponse
+} from './types';
 import { ApiXHttpMethod } from './types/ApiXHttpMethod';
 import { ApiXJsonObject } from './types/ApiXJsonObject';
 import { ApiXKeyStore } from './security/ApiXKeyStore';
 import { ApiXRequestConfig } from './types/ApiXRequestConfig';
+import { ApiXRequestError } from './error';
 import { ApiXResponse } from './types/ApiXResponse';
 import { createHmac } from 'crypto';
+import { ApiXResponseError, errorForResponse } from './error/ApiXResponseError';
 
 /**
  * Headers that can be set on an API-X request.
@@ -188,7 +194,7 @@ export class ApiXRequest {
   public setHeader(name: string, value: string) {
     const headerName = this.headerName(name);
     if (this.isProtectedHeader(headerName) || this.isReadOnlyHeader(headerName)) {
-      throw new Error(`Attempting to set a protected header: ${name}!`);
+      throw new ApiXRequestError(`Attempting to set a protected header: ${name}!`);
     }
     this.unprotectedHeaders[headerName] = value;
   }
@@ -203,7 +209,7 @@ export class ApiXRequest {
   public unsetHeader(name: string) {
     const headerName = this.headerName(name);
     if (this.isProtectedHeader(headerName) || this.isReadOnlyHeader(headerName)) {
-      throw new Error(`Attempting to unset a protected header: ${name}!`);
+      throw new ApiXRequestError(`Attempting to unset a protected header: ${name}!`);
     }
     delete this.unprotectedHeaders[headerName];
   }
@@ -222,7 +228,7 @@ export class ApiXRequest {
   public header(name: string): string | undefined {
     const headerName = this.headerName(name);
     if (this.isProtectedHeader(headerName)) {
-      throw new Error(`Invalid access. ${name} is a protected header and cannot be accessed.`);
+      throw new ApiXRequestError(`Invalid access. ${name} is a protected header and cannot be accessed.`);
     }
     return this.unprotectedHeaders[headerName] || this.readOnlyHeaders[headerName];
   }
@@ -289,7 +295,7 @@ export class ApiXRequest {
    */
   public async make(): Promise<ApiXResponse> {
     if (this.sent) {
-      throw new Error('This request has already been sent. API-X does not allow attempting to send the same request multiple times.');
+      throw new ApiXRequestError('This request has already been sent. API-X does not allow attempting to send the same request multiple times.');
     }
 
     this.sent = true;
@@ -310,13 +316,18 @@ export class ApiXRequest {
 
       this.unsetProtectedHeaders();
 
-      return {
+      return this.handleResponse({
         data: responseData,
         statusCode: response.status
-      };
+      });
     } catch (error) {
       this.unsetProtectedHeaders();
-      throw new Error(`API-X Request failed: ${error}`);
+      
+      if (error instanceof ApiXResponseError) {
+        throw error;
+      }
+
+      throw new ApiXRequestError(`API-X Request failed: ${error}`);
     }
   }
 
@@ -401,5 +412,18 @@ export class ApiXRequest {
         : value;
     });
     return sortedObj;
+  }
+
+  /**
+   * Handles the response from an API-X request and throws an `ApiXError`, if needed.
+   * @param response The response object.
+   * @returns The original response object.
+   * @throws An error if the response indicates a failure.
+   */
+  private handleResponse(response: ApiXResponse): ApiXResponse {
+    if (response && response.data && isApiXErrorResponse(response.data)) {
+      throw errorForResponse(response as ApiXResponse<ApiXErrorResponse>);
+    }
+    return response;
   }
 }

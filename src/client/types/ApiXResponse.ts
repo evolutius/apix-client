@@ -1,5 +1,3 @@
-import { ApiXJsonObject } from './ApiXJsonObject';
-
 /**
  * A response data object that is returned when a request is made with
  * the `ApiXRequest` object.
@@ -19,13 +17,13 @@ export interface ApiXResponseData {
  * 
  * @category Making API-X Requests
  */
-export interface ApiXResponse {
+export interface ApiXResponse<DataType extends ApiXResponseData = ApiXResponseData> {
 
   /**
    * The JSON data returned by the API-X endpoint.
    * This is optional because some endpoints may not return any data.
    */
-  readonly data?: ApiXJsonObject | ApiXResponseData;
+  readonly data?: DataType;
 
   /**
    * The HTTP status code returned by the API-X endpoint.

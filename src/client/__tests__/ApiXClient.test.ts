@@ -1,6 +1,6 @@
 import { ApiXClient } from '../ApiXClient';
 import { ApiXRequest } from '../ApiXRequest';
-import { ApiXInvalidRequestError } from '../error/ApiXError';
+import { ApiXResponseInvalidRequestError } from '../error/ApiXResponseError';
 import { ApiXResponse } from '../types/ApiXResponse';
 
 jest.mock('../ApiXRequest');
@@ -46,23 +46,6 @@ describe('ApiXClient', () => {
 
     const response = await client.makeRequest(url, 'POST', { key: 'value' });
     expect(response).toEqual(mockResponse);
-  });
-
-  it('should convert response into an error when appropriate', async () => {
-    const mockResponse: ApiXResponse = {
-      statusCode: 400,
-      data: {
-        success: false,
-        error: {
-          id: 'invalidRequest',
-          message: 'Invalid request.',
-        }
-      }
-    };
-    MockApiXRequest.prototype.make.mockResolvedValue(mockResponse);
-
-    await expect(client.makeRequest(url, 'POST', { key: 'value' })).rejects.toThrow(ApiXInvalidRequestError);
-    await expect(client.makeRequest(url, 'POST', { key: 'value' })).rejects.toThrow('Invalid request.');
   });
 
   it('should handle request failures gracefully', async () => {

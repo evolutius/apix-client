@@ -1,10 +1,11 @@
 export {
-  ApiXError,
-  ApiXUnauthorizedAppError,
-  ApiXUnauthorizedRequestError,
-  ApiXInvalidRequestError,
-  ApiXMissingRequiredHeadersError,
-  ApiXMissingJsonBodyError,
-  ApiXInvalidJsonBodyError,
-  ApiXInsecureProtocolError
-} from './ApiXError';
+  ApiXResponseError,
+  ApiXResponseUnauthorizedAppError,
+  ApiXResponseUnauthorizedRequestError,
+  ApiXResponseInvalidRequestError,
+  ApiXResponseMissingRequiredHeadersError,
+  ApiXResponseMissingJsonBodyError,
+  ApiXResponseInvalidJsonBodyError,
+  ApiXResponseInsecureProtocolError
+} from './ApiXResponseError';
+export * from './ApiXRequestError';
