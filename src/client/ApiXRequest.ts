@@ -2,6 +2,10 @@ import {
   ApiXErrorResponse,
   isApiXErrorResponse
 } from './types';
+import {
+  ApiXResponseError,
+  errorForResponse
+} from './error/ApiXResponseError';
 import { ApiXHttpMethod } from './types/ApiXHttpMethod';
 import { ApiXJsonObject } from './types/ApiXJsonObject';
 import { ApiXKeyStore } from './security/ApiXKeyStore';
@@ -9,7 +13,6 @@ import { ApiXRequestConfig } from './types/ApiXRequestConfig';
 import { ApiXRequestError } from './error';
 import { ApiXResponse } from './types/ApiXResponse';
 import { createHmac } from 'crypto';
-import { ApiXResponseError, errorForResponse } from './error/ApiXResponseError';
 
 /**
  * Headers that can be set on an API-X request.
@@ -322,7 +325,7 @@ export class ApiXRequest {
       });
     } catch (error) {
       this.unsetProtectedHeaders();
-      
+
       if (error instanceof ApiXResponseError) {
         throw error;
       }
