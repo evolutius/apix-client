@@ -12,7 +12,7 @@ import { ApiXKeyStore } from './security/ApiXKeyStore';
 import { ApiXRequestConfig } from './types/ApiXRequestConfig';
 import { ApiXRequestError } from './error';
 import { ApiXResponse } from './types/ApiXResponse';
-import { createHmac } from 'crypto';
+import { createHmac, randomBytes } from 'crypto';
 
 /**
  * Headers that can be set on an API-X request.
@@ -376,12 +376,13 @@ export class ApiXRequest {
 
   private generateNonce(length: number = 16): string {
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-      let nonce = '';
-      for (let i = 0; i < length; i++) {
-        const randomIndex = Math.floor(Math.random() * characters.length);
-        nonce += characters[randomIndex];
-      }
-      return nonce;
+    const bytes = randomBytes(length);
+    let nonce = '';
+    for (let i = 0; i < bytes.length; i++) {
+      const randomIndex = bytes[i] % characters.length;
+      nonce += characters[randomIndex];
+    }
+    return nonce;
   }
 
   private generateSignature(appKey: string, dateString: string, nonce: string) {
