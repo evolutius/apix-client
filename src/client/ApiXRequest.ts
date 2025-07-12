@@ -143,7 +143,7 @@ export class ApiXRequest {
    * Unsets the protected headers for the request.
    */
   private unsetProtectedHeaders() {
-    delete this.readOnlyHeaders[this.headerName(ProtectedHeaders.ApiKey)];
+    delete this.protectedHeaders[this.headerName(ProtectedHeaders.ApiKey)];
     delete this.protectedHeaders[this.headerName(ProtectedHeaders.Signature)];
     delete this.protectedHeaders[this.headerName(ProtectedHeaders.SignatureNonce)];
   }
