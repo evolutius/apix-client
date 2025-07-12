@@ -19,5 +19,8 @@ export class ApiXRequestError extends Error {
  * @returns True if the error is an ApiXRequestError, false otherwise.
  */
 export function isApiXRequestError(error: unknown): error is ApiXRequestError {
-  return error instanceof ApiXRequestError;
+  return (
+    error instanceof ApiXRequestError ||
+    (typeof error === 'object' && error !== null && (error as Error).name === 'ApiXRequestError')
+  );
 }
