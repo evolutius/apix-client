@@ -20,7 +20,6 @@ export class ApiXRequestError extends Error {
  */
 export function isApiXRequestError(error: unknown): error is ApiXRequestError {
   return (
-    error instanceof ApiXRequestError ||
-    (typeof error === 'object' && error !== null && (error as Error).name === 'ApiXRequestError')
+    error instanceof ApiXRequestError && error.constructor === ApiXRequestError
   );
 }

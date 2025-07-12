@@ -42,22 +42,6 @@ export const errorForResponse = (response: ApiXResponse<ApiXErrorResponse>): Api
   }
 };
 
-/**
- * Type guard to determine if an error is a specific API-X response error. This
- * function will return false for plain ApiXResponseError instances.
- * @param error The error to check.
- * @returns True if the error is a specific API-X response error, false otherwise.
- */
-const specificApiXResponseErrorConstructors = [
-  ApiXResponseUnauthorizedAppError,
-  ApiXResponseUnauthorizedRequestError,
-  ApiXResponseInvalidRequestError,
-  ApiXResponseMissingRequiredHeadersError,
-  ApiXResponseMissingJsonBodyError,
-  ApiXResponseInvalidJsonBodyError,
-  ApiXResponseInsecureProtocolError,
-];
-
 export function isSpecificApiXResponseError(error: unknown): error is ApiXResponseError {
   return specificApiXResponseErrorConstructors.some((ErrorConstructor) => error instanceof ErrorConstructor);
 }
@@ -168,3 +152,19 @@ export class ApiXResponseInsecureProtocolError extends ApiXResponseError {
     super('insecureProtocol', statusCode, message);
   }
 }
+
+/**
+ * Type guard to determine if an error is a specific API-X response error. This
+ * function will return false for plain ApiXResponseError instances.
+ * @param error The error to check.
+ * @returns True if the error is a specific API-X response error, false otherwise.
+ */
+const specificApiXResponseErrorConstructors = [
+  ApiXResponseUnauthorizedAppError,
+  ApiXResponseUnauthorizedRequestError,
+  ApiXResponseInvalidRequestError,
+  ApiXResponseMissingRequiredHeadersError,
+  ApiXResponseMissingJsonBodyError,
+  ApiXResponseInvalidJsonBodyError,
+  ApiXResponseInsecureProtocolError,
+];
