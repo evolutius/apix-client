@@ -32,17 +32,18 @@ describe('ApiXRequest', () => {
     expect(request.httpMethod).toBe('POST');
   });
 
-  it('protected headers must not be set after making request', async () => {
+  it('protected headers must be cleared after making request', async () => {
     global.fetch = jest.fn().mockResolvedValue({
       status: 200,
       json: jest.fn().mockResolvedValue({ success: true })
     });
 
     await request.make();
-    const headers = request.headers;
-    expect(headers['x-api-key']).toBeUndefined();
-    expect(headers['x-signature']).toBeUndefined();
-    expect(headers['x-signature-nonce']).toBeUndefined();
+
+    const protectedHeaders = (request as any).protectedHeaders;
+    expect(protectedHeaders['x-api-key']).toBeUndefined();
+    expect(protectedHeaders['x-signature']).toBeUndefined();
+    expect(protectedHeaders['x-signature-nonce']).toBeUndefined();
   });
 
   it('should initialize read-only headers properly.', async () => {
