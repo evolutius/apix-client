@@ -6,13 +6,16 @@ import {
   ApiXResponseError,
   errorForResponse
 } from './error/ApiXResponseError';
+import {
+  createHmac,
+  randomBytes
+} from 'crypto';
 import { ApiXHttpMethod } from './types/ApiXHttpMethod';
 import { ApiXJsonObject } from './types/ApiXJsonObject';
 import { ApiXKeyStore } from './security/ApiXKeyStore';
 import { ApiXRequestConfig } from './types/ApiXRequestConfig';
 import { ApiXRequestError } from './error';
 import { ApiXResponse } from './types/ApiXResponse';
-import { createHmac, randomBytes } from 'crypto';
 
 /**
  * Headers that can be set on an API-X request.
@@ -302,10 +305,11 @@ export class ApiXRequest {
     }
 
     this.sent = true;
+    const keys = await this.keyStore.getKeys();
 
     this.initializeProtectedHeaders(
-      this.keyStore.getApiKey(),
-      this.keyStore.getAppKey()
+      keys.apiKey,
+      keys.appKey
     );
 
     try {

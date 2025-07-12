@@ -1,4 +1,4 @@
-import { ApiXKeyStore } from './ApiXKeyStore';
+import { ApiXKeyStore, ApiXKeys } from './ApiXKeyStore';
 import { KeyProvider } from './KeyProvider';
 import { SymmetricEncryptionService } from './SymmetricEncryptionService';
 
@@ -43,5 +43,16 @@ export class ApiXEncryptedKeyStore implements ApiXKeyStore {
       this.encryptionService.decrypt(this.encryptedKeys, key)
     );
     return decryptedJsonObject.appKey;
+  }
+
+  public getKeys(): ApiXKeys {
+    const key = this.keyProvider.getKey();
+    const decryptedJsonObject = JSON.parse(
+      this.encryptionService.decrypt(this.encryptedKeys, key)
+    );
+    return {
+      apiKey: decryptedJsonObject.apiKey,
+      appKey: decryptedJsonObject.appKey
+    };
   }
 }

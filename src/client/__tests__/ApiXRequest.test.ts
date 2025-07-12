@@ -7,6 +7,10 @@ describe('ApiXRequest', () => {
   const keyStore = {
     getApiKey: jest.fn().mockReturnValue('testApiKey'),
     getAppKey: jest.fn().mockReturnValue('testAppKey'),
+    getKeys: jest.fn().mockReturnValue({
+      apiKey: 'testApiKey',
+      appKey: 'testAppKey'
+    })
   }
   const config: ApiXRequestConfig = {
     url: new URL('https://apix.example.com/endpoint/method?param=val'),

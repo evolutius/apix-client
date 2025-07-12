@@ -10,6 +10,10 @@ describe('ApiXClient', () => {
   const keyStore = {
     getApiKey: jest.fn().mockReturnValue('testApiKey'),
     getAppKey: jest.fn().mockReturnValue('testAppKey'),
+    getKeys: jest.fn().mockReturnValue({
+      apiKey: 'testApiKey',
+      appKey: 'testAppKey'
+    })
   }
   let client: ApiXClient;
   let url: URL;
