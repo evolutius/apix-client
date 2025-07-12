@@ -60,7 +60,7 @@ To use a key store securely, you can go one of two ways:
      * This is more secure (provided that the endpoint that retrieves the keys are well-secured), but it makes a network request whenever keys are required, so it is slower.
 
 **Example of ROSS:**
-```ts
+```typescript
 import {
   ApiXClient,
   ApiXEncryptedKeyStore,
@@ -109,7 +109,7 @@ const client = ApiXClient(keyStore);
 ```
 
 **Example of ARNS:**
-```ts
+```typescript
 import {
   ApiXClient,
   ApiXKeys,

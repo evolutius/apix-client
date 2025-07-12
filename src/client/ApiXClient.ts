@@ -15,8 +15,7 @@ export class ApiXClient {
 
   /**
    * Creates a new instance of an API-X Client.
-   * @param apiKey The application API Key.
-   * @param appKey The application signing key.
+   * @param keyStore An object that securely retrieves API keys.
    */
   public constructor(
     private readonly keyStore: ApiXKeyStore
