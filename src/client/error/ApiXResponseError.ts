@@ -43,6 +43,32 @@ export const errorForResponse = (response: ApiXResponse<ApiXErrorResponse>): Api
 };
 
 /**
+ * Type guard to determine if an error is a specific API-X response error. This
+ * function will return false for plain ApiXResponseError instances.
+ * @param error The error to check.
+ * @returns True if the error is a specific API-X response error, false otherwise.
+ */
+export function isSpecificApiXResponseError(error: unknown): error is ApiXResponseError {
+  return error instanceof ApiXResponseUnauthorizedAppError ||
+         error instanceof ApiXResponseUnauthorizedRequestError ||
+         error instanceof ApiXResponseInvalidRequestError ||
+         error instanceof ApiXResponseMissingRequiredHeadersError ||
+         error instanceof ApiXResponseMissingJsonBodyError ||
+         error instanceof ApiXResponseInvalidJsonBodyError ||
+         error instanceof ApiXResponseInsecureProtocolError;
+}
+
+/**
+ * Type guard to determine if an error is a plain ApiXResponseError.
+ * This function will return true for any ApiXResponseError that is not a specific API-X response error.
+ * @param error The error to check.
+ * @returns True if the error is a plain ApiXResponseError, false otherwise.
+ */
+export function isPlainApiXResponseError(error: unknown): error is ApiXResponseError {
+  return error instanceof ApiXResponseError && error.constructor === ApiXResponseError;
+}
+
+/**
  * An error object that can be returned by an API-X endpoint.
  */
 export class ApiXResponseError extends Error {

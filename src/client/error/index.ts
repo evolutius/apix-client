@@ -6,6 +6,8 @@ export {
   ApiXResponseMissingRequiredHeadersError,
   ApiXResponseMissingJsonBodyError,
   ApiXResponseInvalidJsonBodyError,
-  ApiXResponseInsecureProtocolError
+  ApiXResponseInsecureProtocolError,
+  isPlainApiXResponseError,
+  isSpecificApiXResponseError
 } from './ApiXResponseError';
 export * from './ApiXRequestError';
