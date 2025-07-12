@@ -48,14 +48,18 @@ export const errorForResponse = (response: ApiXResponse<ApiXErrorResponse>): Api
  * @param error The error to check.
  * @returns True if the error is a specific API-X response error, false otherwise.
  */
+const specificApiXResponseErrorConstructors = [
+  ApiXResponseUnauthorizedAppError,
+  ApiXResponseUnauthorizedRequestError,
+  ApiXResponseInvalidRequestError,
+  ApiXResponseMissingRequiredHeadersError,
+  ApiXResponseMissingJsonBodyError,
+  ApiXResponseInvalidJsonBodyError,
+  ApiXResponseInsecureProtocolError,
+];
+
 export function isSpecificApiXResponseError(error: unknown): error is ApiXResponseError {
-  return error instanceof ApiXResponseUnauthorizedAppError ||
-         error instanceof ApiXResponseUnauthorizedRequestError ||
-         error instanceof ApiXResponseInvalidRequestError ||
-         error instanceof ApiXResponseMissingRequiredHeadersError ||
-         error instanceof ApiXResponseMissingJsonBodyError ||
-         error instanceof ApiXResponseInvalidJsonBodyError ||
-         error instanceof ApiXResponseInsecureProtocolError;
+  return specificApiXResponseErrorConstructors.some((ErrorConstructor) => error instanceof ErrorConstructor);
 }
 
 /**
