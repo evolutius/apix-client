@@ -21,8 +21,8 @@ Environment variables are one of the most common and effective ways to store API
 1. **Create a `.env` File**: Store your keys in a `.env` file at the root of your project.
 
    ```env
-   API_KEY=your-api-key
-   APP_KEY=your-app-key
+   API_X_API_KEY=your-api-key
+   API_X_APP_KEY=your-app-key
    ```
 
 _Note: Never commit your `.env` file to a repository or you will be exposing keys and secrets._
@@ -39,8 +39,22 @@ _Note: Never commit your `.env` file to a repository or you will be exposing key
    import dotenv from 'dotenv';
    dotenv.config();
 
-   const apiKey = process.env.API_KEY;
-   const appKey = process.env.APP_KEY;
+   const apiKey = process.env.API_X_API_KEY;
+   const appKey = process.env.API_X_APP_KEY;
+   ```
+
+   The API-X client has a utility key-store that already handles keys set in those environment variables:
+
+   ```typescript
+   import dotenv from 'dotenv';
+   import { ApiXEnvironmentKeyStore } from '@evlt/apix-client';
+
+   dotenv.config();
+   const keyStore = ApiXEnvironmentKeyStore.shared;  // singleton instance
+   keyStore.startupTest();  // will throw an error if either key is missing.
+   keyStore.getApiKey();    // retrieve API key (expected to be API_X_APP_KEY environment variable)
+   keyStore.getAppKey();    // retrieve App key (expected to be APP_X_APP_KEY environment variable)
+   keyStore.getKeys();      // retrieves both keys
    ```
 
 3. **Add `.env` to `.gitignore`**: Ensure the `.env` file is ignored by Git to avoid committing sensitive information.
@@ -50,16 +64,17 @@ _Note: Never commit your `.env` file to a repository or you will be exposing key
    .env
    ```
 
-4. **In-code Security (client-side storage)**: If the client runs on a web or browser environment, you must **not use environment variables** as these are bundled in plaintext, available for anyone to see. The best practice is to only keep the keys in a backend service, and using a proxy to reach your API-X endpoints. API-X client provides an enhancement over plain keys storage in RAM, even when keys are retrieved from a backend service. When using the API-X client, use a secure Key Store.
+### 2. Browser (Front-End) Environments - Defensive Practices
 
+1. **In-code Security (client-side storage)**: If the client runs on a web or browser environment, you must **not use environment variables** as these are bundled in plaintext, available for anyone to see. The best practice is to only keep the keys in a backend service, and using a proxy to reach your API-X endpoints. API-X client provides an enhancement over plain keys storage in RAM, even when keys are retrieved from a backend service. When using the API-X client, use a secure Key-Store.
 
-To use a key store securely, you can go one of two ways:
-  1. Securely obtaining keys only once, and storing them securely. This is referred to as ROSS (Request once, Store Securely); or,
+To use a key-store as defensively as possible in a browser environment, you can go one of two ways:
+  1. Securely obtaining keys only once, and storing them securely. This is referred to as ROSE (Request Once, Store Encrypted).
      * This is less secure, but a network request to obtain the keys are only done once, so it is faster.
-  2. Implementing a KeyStore service to securely retrieve your keys every time they are needed. This is referred to as ARNS (Always request, Never store);
-     * This is more secure (provided that the endpoint that retrieves the keys are well-secured), but it makes a network request whenever keys are required, so it is slower.
+  2. Implementing a KeyStore service to securely retrieve your keys every time they are needed. This is referred to as ARNS (Always Request, Never Store).
+     * This is generally more secure (provided that the endpoint that retrieves the keys is well-secured), but it makes a network request whenever keys are required, so it is slower. Additionally, if the service that stores the keys is not secure, then this method won't be secured either.
 
-**Example of ROSS:**
+**Example of ROSE:**
 ```typescript
 import {
   ApiXClient,
@@ -67,7 +82,7 @@ import {
   ApiXSymmetricEncryptionService,
   KeyProvider
 } from '@evlt/apix-client';
-import { createHmac, Hmac, randomUUID } from 'crypto';
+import { randomUUID } from 'crypto';
 
 /// 1. Implement a KeyProvider
 class MyKeyProvider {
@@ -82,13 +97,9 @@ class MyKeyProvider {
     /// This key should be:
     /// 1. Hard to guess.
     /// 2. Unique per session / instance.
-    /// 3. Derived (never stored in RAM)
+    /// 3. Derived only (not permanently stored in the object)
     /// 4. Difficult to access outside of the environment
-    const hmac = createHmac('sha256', this.uuid);
-    const key = hmac
-      .update(this.uniqueId, 'utf-8')  /// Different per instance since Hmac key is different.
-      .digest()
-      .toString('hex');  /// Key is derived every time.
+    const key = ... // derived key. Only temporarily stored in RAM.
 
     return key;
   }
@@ -97,7 +108,7 @@ class MyKeyProvider {
 /// Request once.
 const keys = await secureRetrievalForKeys();
 
-/// Now the keys won't be stored in RAM and are more difficult to access.
+/// Now the decrypted keys won't be stored in RAM (only when being retrieved) and are more difficult to access.
 const keyStore = new ApiXEncryptedKeyStore(
   new ApiXSymmetricEncryptionService(process.env.ENC_ALGO || 'secure'),  /// Store securely
   new MyKeyProvider(process.env.SOME_UNIQUE_KEY!),
@@ -105,7 +116,7 @@ const keyStore = new ApiXEncryptedKeyStore(
   keys.appKey
 );
 
-const client = ApiXClient(keyStore);
+const client = new ApiXClient(keyStore);
 ```
 
 **Example of ARNS:**
@@ -117,24 +128,24 @@ import {
 } from '@evlt/apix-client';
 import { createHmac, Hmac, randomUUID } from 'crypto';
 
-/// 1. Implement your key store sevice
+/// 1. Implement your key-store service
 class KeyStoreService implements ApiXKeyStore {
   constructor(...) {
     this.secureKeysClient = ...;
   }
 
   async getApiKey(): Promise<string> {
-    const keys = await getKeys();
+    const keys = await this.getKeys();
     return keys.apiKey;
   }
 
   async getAppKey(): Promise<string> {
-    const keys = await getKeys();
+    const keys = await this.getKeys();
     return keys.appKey;
   }
 
   async getKeys(): Promise<ApiXKeys> {
-    const response = this.secureKeysClient.getKeys(...);
+    const response = await this.secureKeysClient.getKeys(...);
 
     /// TODO: Check if there are errors and handle. If this method throws, you will
     /// be able to catch it when you make requests, so you may choose to not do anything
@@ -149,15 +160,15 @@ const keyStore = new KeyStoreService(
   ...
 );
 
-/// Knows how to request keys efficients.
+/// Knows how to request keys efficiently.
 /// Only one network request will be made to retrieve both keys (unless you implement your KeyStore in such a way that it'd require multiple).
-/// The will never store your keys.
+/// The API-X client will never store your keys for a long time. They will only be temporarily stored in RAM when making a request, and after wars, they are removed.
 const client = ApiXClient(keyStore);
 ```
 
-_Note: Browser environments are naturally less secure, _
+_Note: Browser environments are naturally less secure, so while steps may be taken to ensure it's as safe as possible, a determined attacker can still get through. You must take steps to determine what your weakest links are. For example, in ROSE, that'd be the fact that even encrypted data can be retrieved by reverse engineering the code that is available in the browser. For ARNS, it's your Keys Retrieval Service; determined attackers may be able to access that endpoint and retrieve your keys._
 
-### 2. Use Secure Environment Management Tools
+### 3. Use Secure Environment Management Tools
 
 For production environments, consider using secret management services to handle environment variables more securely. Some popular options include:
 
@@ -168,42 +179,42 @@ For production environments, consider using secret management services to handle
 
 These tools provide additional layers of security, such as encryption at rest, access control, and auditing.
 
-### 3. Limit Access and Permissions
+### 4. Limit Access and Permissions
 
 To minimize risk, follow the principle of least privilege. Only allow access to your API keys to the parts of your application that truly need it.
 
 - **Role-Based Access Control (RBAC)**: Assign roles with specific permissions to services or users who need access to secrets.
 - **Environment-Specific Keys**: Use separate keys for development, staging, and production environments. This prevents development keys from being used in production and vice versa.
 
-### 4. Rotate Keys Regularly
+### 5. Rotate Keys Regularly
 
 Regularly rotating API and application keys helps reduce the impact of key exposure. If a key is compromised, having a rotation policy in place will limit the damage that can be done.
 
 - **Automated Rotation**: Use secret management tools that support automated key rotation.
 - **Deprecation Policy**: Ensure there is a deprecation period for old keys, allowing services to switch to the new keys without downtime.
 
-### 5. Avoid Hardcoding Keys
+### 6. Avoid Hardcoding Keys
 
 Never hardcode API keys or secrets directly in your codebase. Hardcoding keys makes them more susceptible to being leaked, especially in open-source projects or shared environments.
 
 - **Configuration Files**: Store sensitive keys in configuration files that are not committed to version control.
 - **Environment Variables**: Use environment variables to provide keys at runtime, avoiding the need to include them in your code.
 
-### 6. Monitor and Audit Key Usage
+### 7. Monitor and Audit Key Usage
 
 Monitoring and auditing the usage of your API and application keys helps detect suspicious activities early.
 
 - **Logging**: Log every time a key is accessed, used, or modified.
 - **Alerts**: Set up alerts for unusual or unauthorized usage patterns, such as an unexpected number of requests or requests from unfamiliar IP addresses.
 
-### 7. Use Encryption
+### 8. Use Encryption
 
 Encrypt sensitive data, including API keys, both at rest and in transit. Encryption ensures that even if data is accessed by unauthorized individuals, it remains unreadable without the proper decryption key.
 
 - **TLS/SSL**: Use HTTPS to encrypt data in transit between clients and servers.
 - **Database Encryption**: Encrypt any sensitive information stored in your databases, including API keys.
 
-## Example: Securing Keys in a Node.js App
+## Example: Securing Keys in a Node.js App (Backend)
 
 Here is a complete example of how to use `dotenv` to secure API and application keys in a Node.js app:
 
@@ -233,6 +244,19 @@ Here is a complete example of how to use `dotenv` to secure API and application 
    // Use the keys securely in your application
    console.log('API Key and App Key loaded successfully');
    ```
+
+4. **API-X Client Example:**:
+API-X client makes this even simpler by providing a Key-Store that reads your environment variables:
+
+  ```typescript
+  import { ApiXClient, ApiXEnvironmentKeyStore } from '@evlt/apix-client';
+  import dotenv from 'dotenv';
+  dotenv.config()
+
+  const keyStore = ApiXEnvironmentKeyStore.shared;  /// Expects API Key and App Key to be in API_X_API_KEY and API_X_APP_KEY, respectively.
+  keyStore.startupTest();  /// Will halt execution or throw if either key is not defined.
+  const client = new ApiXClient(keyStore);
+  ```
 
 ## Conclusion
 

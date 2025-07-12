@@ -34,14 +34,14 @@ yarn add @evlt/apix-client
 
 ### Creating an API-X Client
 
-First, create an instance of `ApiXClient` by providing your `apiKey` and `appKey`:
+First, create an instance of `ApiXClient` by providing your `keyStore`:
 
 ```typescript
-import { ApiXClient } from '@evlt/apix-client';
+import { ApiXClient, ApiXEnvironmentKeyStore } from '@evlt/apix-client';
 
-const apiKey = 'your-api-key';
-const appKey = 'your-app-key';
-const client = new ApiXClient(apiKey, appKey);
+const keyStore = ApiXEnvironmentKeyStore.shared;  /// Only secure for backend environments.
+keyStore.startupTest();  /// Will halt execution or throw if either key is not defined.
+const client = new ApiXClient(keyStore);
 ```
 
 ### Making Requests
@@ -81,12 +81,11 @@ request.make()
 
 #### Constructor
 ```typescript
-constructor(apiKey: string, appKey: string)
+constructor(keyStore: ApiXKeyStore)
 ```
 Creates a new instance of an API-X Client.
 
-- **`apiKey`**: The API key for your application.
-- **`appKey`**: The application signing key used for request signing.
+- **`keyStore`**: An object that securely retrieves the keys used in an API-X.
 
 #### Methods
 

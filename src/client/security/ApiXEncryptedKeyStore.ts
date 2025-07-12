@@ -12,7 +12,7 @@ import { SymmetricEncryptionService } from './SymmetricEncryptionService';
  */
 export class ApiXEncryptedKeyStore implements ApiXKeyStore {
 
-  private readonly encryptedKeys: string;
+  private readonly data: string;
 
   public constructor(
     private readonly encryptionService: SymmetricEncryptionService,
@@ -20,7 +20,7 @@ export class ApiXEncryptedKeyStore implements ApiXKeyStore {
     apiKey: string,
     appKey: string
   ) {
-    this.encryptedKeys = this.encryptionService.encrypt(
+    this.data = this.encryptionService.encrypt(
       JSON.stringify({
         apiKey,
         appKey
@@ -32,7 +32,7 @@ export class ApiXEncryptedKeyStore implements ApiXKeyStore {
   public getApiKey(): string {
     const key = this.keyProvider.getKey();
     const decryptedJsonObject = JSON.parse(
-        this.encryptionService.decrypt(this.encryptedKeys, key)
+        this.encryptionService.decrypt(this.data, key)
       );
       return decryptedJsonObject.apiKey;
   }
@@ -40,7 +40,7 @@ export class ApiXEncryptedKeyStore implements ApiXKeyStore {
   public getAppKey(): string {
     const key = this.keyProvider.getKey();
     const decryptedJsonObject = JSON.parse(
-      this.encryptionService.decrypt(this.encryptedKeys, key)
+      this.encryptionService.decrypt(this.data, key)
     );
     return decryptedJsonObject.appKey;
   }
@@ -48,7 +48,7 @@ export class ApiXEncryptedKeyStore implements ApiXKeyStore {
   public getKeys(): ApiXKeys {
     const key = this.keyProvider.getKey();
     const decryptedJsonObject = JSON.parse(
-      this.encryptionService.decrypt(this.encryptedKeys, key)
+      this.encryptionService.decrypt(this.data, key)
     );
     return {
       apiKey: decryptedJsonObject.apiKey,

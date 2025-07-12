@@ -11,10 +11,14 @@ describe('ApiXEncryptedKeyStore', () => {
   it('should retrieve the stored keys', () => {
     expect(keyStore.getApiKey()).toBe('testApiKey');
     expect(keyStore.getAppKey()).toBe('testAppKey');
+    expect(keyStore.getKeys()).toEqual({
+      apiKey: 'testApiKey',
+      appKey: 'testAppKey',
+    });
   });
 
   it('should contain encrypted keys', () => {
-    const encryptedData = keyStore['encryptedKeys'];
+    const encryptedData = keyStore['data'];
     expect(encryptedData).toBeDefined();
 
     const decryptedData = mockEncryptionService.decrypt(encryptedData, mockKeyProvider.getKey());
