@@ -1,6 +1,7 @@
 import { ApiXRequest } from '../ApiXRequest';
 import { ApiXResponseInvalidRequestError } from '../error';
 import { ApiXRequestConfig } from '../types/ApiXRequestConfig';
+import { createHmac } from 'crypto';
 
 describe('ApiXRequest', () => {
   const keyStore = {
@@ -211,5 +212,27 @@ describe('ApiXRequest', () => {
     ).toBe(
       requestB['allHeaders']['x-signature']
     )
+  });
+
+  it('should correctly generate signature when body contains non-ASCII characters', () => {
+    const dataWithUnicode = { message: 'こんにちは世界' };
+    const nonce = 'unicodeNonce';
+    const date = 'Wed, 13 Nov 2024 15:00:00 GMT';
+    const unicodeRequest = new ApiXRequest({
+      ...config,
+      data: dataWithUnicode
+    });
+
+    const expectedBody = JSON.stringify((unicodeRequest as any).sortedObjectKeys(dataWithUnicode));
+    const expectedBase64 = Buffer.from(expectedBody, 'utf-8').toString('base64');
+    const pathWithQueries = `${unicodeRequest.url.pathname}${unicodeRequest.url.search}`;
+    const message = `${pathWithQueries}.${unicodeRequest.httpMethod}.${nonce}.${date}.${expectedBase64}`;
+    const expectedSignature = createHmac('sha256', 'testAppKey')
+      .update(message, 'utf-8')
+      .digest('hex');
+
+    const actualSignature = (unicodeRequest as any).generateSignature('testAppKey', date, nonce);
+
+    expect(actualSignature).toBe(expectedSignature);
   });
 });

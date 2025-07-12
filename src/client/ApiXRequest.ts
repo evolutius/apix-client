@@ -391,7 +391,7 @@ export class ApiXRequest {
       ? JSON.stringify(this.sortedObjectKeys(httpBody))
       : '';
     const httpBodyBase64 = stringifiedJsonBody.length > 0
-      ? Buffer.from(stringifiedJsonBody, 'binary').toString('base64')
+      ? Buffer.from(stringifiedJsonBody, 'utf-8').toString('base64')
       : '';
     const pathWithQueries = `${this.url.pathname}${this.url.search}`;
     const message = `${pathWithQueries}.${this.httpMethod}.${nonce}.${dateString}.${httpBodyBase64}`;
